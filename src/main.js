@@ -38,9 +38,9 @@ function generateBackstageGrid() {
   if (window.innerWidth <= 768) {
     let out = '';
     out += `<div class="backstage-video-full"><iframe src="https://www.youtube.com/embed/${vIds[0]}?autoplay=1&mute=1&loop=1&playlist=${vIds[0]}&controls=0&modestbranding=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`;
-    for (let i = 1; i <= 6; i++) out += `<div class="backstage-item small-p"><img src="/foto/${i}.jpg" loading="lazy"></div>`;
+    for (let i = 1; i <= 6; i++) out += `<div class="backstage-item small-p"><img src="/highvisionsite/foto/${i}.jpg" loading="lazy"></div>`;
     out += `<div class="backstage-video-full"><iframe src="https://www.youtube.com/embed/${vIds[1]}?autoplay=1&mute=1&loop=1&playlist=${vIds[1]}&controls=0&modestbranding=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`;
-    for (let i = 7; i <= 12; i++) out += `<div class="backstage-item small-p"><img src="/foto/${i}.jpg" loading="lazy"></div>`;
+    for (let i = 7; i <= 12; i++) out += `<div class="backstage-item small-p"><img src="/highvisionsite/foto/${i}.jpg" loading="lazy"></div>`;
     return out;
   }
 
@@ -52,7 +52,7 @@ function generateBackstageGrid() {
       const id = vIds[vIdx++];
       return `<div class="backstage-item big-v"><iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`;
     } else if (pIdx <= 16) {
-      return `<div class="backstage-item small-p"><img src="/foto/${pIdx++}.jpg" loading="lazy"></div>`;
+      return `<div class="backstage-item small-p"><img src="/highvisionsite/foto/${pIdx++}.jpg" loading="lazy"></div>`;
     }
     return '';
   }).join('');
