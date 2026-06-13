@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAGEN Дерево жизни 1.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg-dark-sky: #020617;
+  --bg-night-panel: #0b0f19;
+  --border-clr: #1e293b;
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --red: #ef4444;
+  --gold: #fbbf24;
+  --text-dark: #f8fafc;
+  --text-muted-dark: #64748b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background-color: var(--bg-dark-sky);
+  color: var(--text-dark);
+  font-family: 'Montserrat', sans-serif;
+  padding: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+.dashboard-container {
+  width: 100%;
+  max-width: 1550px;
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 24px;
+  background: var(--bg-night-panel);
+  border: 2px solid var(--border-clr);
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.8);
+}
+.left-panel { display: flex; flex-direction: column; gap: 16px; }
+.header-widget h1 {
+  font-size: 20px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--cyan);
+  text-shadow: 0 0 15px rgba(6,182,212,0.3);
+}
+.clock-row { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-muted-dark); margin-top: 4px; }
+
+/* ===== ДЕРЕВО ===== */
+.garden-viewport {
+  width: 100%; aspect-ratio: 653 / 1280; max-height: 500px; border-radius: 20px;
+  border: 1px solid var(--border-clr);
+  position: relative; overflow: hidden;
+  background: #000;
+  --stage-glow: rgba(16,185,129,0.35);
+  box-shadow: 0 0 0 1px var(--stage-glow), 0 0 28px var(--stage-glow);
+  transition: box-shadow 1.2s ease;
+}
+.tree-scene {
+  width: 100%; height: 100%;
+  display: flex; align-items: flex-end; justify-content: center;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.tree-svg-wrap {
+  position: relative; z-index: 2;
+  width: 100%; height: 100%;
+  transform-origin: bottom center;
+}
+.tree-photo {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center center;
+  transition: filter 1s ease;
+}
+.tree-photo.golden {
+  filter: sepia(0.55) saturate(1.6) hue-rotate(-12deg) brightness(1.05);
+}
+
+/* overlay статистики */
+.garden-overlay-stats {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(2,6,23,0.92));
+  padding: 10px 16px 12px;
+  z-index: 10;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.garden-overlay-row {
+  display: flex; justify-content: space-between; align-items: flex-end;
+}
+.overlay-balance-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px; font-weight: 700; color: var(--green);
+}
+.stage-badge {
+  background: rgba(6,182,212,0.1); border: 1px solid var(--cyan);
+  color: var(--cyan); padding: 5px 12px; border-radius: 10px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+}
+
+/* прогресс к следующей стадии */
+.stage-progress-track {
+  width: 100%; height: 5px; border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.stage-progress-fill {
+  height: 100%; border-radius: 4px;
+  background: var(--stage-glow-solid, var(--green));
+  transition: width 0.6s ease, background 1s ease;
+}
+.stage-progress-label {
+  font-size: 10px; color: var(--text-muted-dark); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 2px;
+}
+
+.risk-info-box {
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border-clr);
+  border-radius: 14px; padding: 12px 14px;
+  display: flex; justify-content: space-between; align-items: center; font-size: 13px;
+}
+.risk-box-value {
+  font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--gold);
+  background: rgba(251,191,36,0.08); padding: 4px 10px; border-radius: 8px;
+}
+.day-chain { display: flex; gap: 12px; justify-content: center; }
+.chain-dot {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border-clr);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; background: #090d16;
+}
+.chain-dot.plus { background: rgba(16,185,129,0.15); border-color: var(--green); color: var(--green); }
+.chain-dot.minus { background: rgba(239,68,68,0.15); border-color: var(--red); color: var(--red); }
+
+.trade-pad {
+  background: rgba(255,255,255,0.01); border: 1px dashed var(--border-clr);
+  border-radius: 16px; padding: 16px; text-align: center;
+}
+.current-step-badge {
+  font-size: 11px; display: inline-block; padding: 4px 12px;
+  background: rgba(6,182,212,0.08); color: var(--cyan);
+  border-radius: 20px; font-weight: 700; text-transform: uppercase;
+}
+.input-group { margin: 12px 0; text-align: left; }
+.input-group label {
+  font-size: 11px; color: var(--text-muted-dark); text-transform: uppercase;
+  font-weight: 700; display: block; margin-bottom: 4px;
+}
+.terminal-input {
+  width: 100%; background: #090d16; border: 1px solid var(--border-clr);
+  border-radius: 8px; padding: 10px; color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none;
+}
+.terminal-input:focus { border-color: var(--cyan); }
+.grid-inputs-2x2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.btn-trade {
+  border: none; border-radius: 10px; padding: 12px;
+  font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 13px;
+  text-transform: uppercase; cursor: pointer; color: #000;
+}
+.btn-plus { background: var(--green); }
+.btn-minus { background: var(--red); }
+.btn-trade:disabled { background: #1e293b !important; color: #475569 !important; cursor: not-allowed; }
+.amount-flow-box {
+  background: #111827; border: 1px solid var(--cyan); border-radius: 12px;
+  padding: 14px; margin-top: 12px; display: none; text-align: left;
+}
+.session-perf-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+.perf-metric-card {
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border-clr);
+  border-radius: 10px; padding: 8px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.perf-metric-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; }
+.day-end-box {
+  background: rgba(6,182,212,0.03); border: 1px solid rgba(6,182,212,0.3);
+  border-radius: 16px; padding: 16px; text-align: center;
+}
+.btn-submit-day {
+  width: 100%; background: var(--cyan); border: none; border-radius: 10px;
+  padding: 12px; color: #000; font-family: 'Montserrat', sans-serif;
+  font-weight: 800; font-size: 13px; text-transform: uppercase; cursor: pointer;
+}
+.right-panel {
+  border-left: 1px dashed var(--border-clr); padding-left: 24px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.global-stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.global-card {
+  background: linear-gradient(135deg, #0f172a, #090d16);
+  border: 1px solid var(--border-clr); border-left: 4px solid var(--cyan);
+  border-radius: 14px; padding: 14px;
+}
+.global-card.profit { border-left-color: var(--green); }
+.global-card.pf-accent { border-left-color: var(--gold); }
+.global-card-title { font-size: 10px; text-transform: uppercase; color: var(--text-muted-dark); font-weight: 700; letter-spacing: 0.5px; }
+.global-card-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; margin-top: 4px; }
+.dash-card {
+  background: rgba(255,255,255,0.01); border: 1px solid var(--border-clr);
+  border-radius: 16px; padding: 18px;
+}
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 6px;
+}
+.card-title {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  color: var(--text-dark); display: flex; align-items: center; gap: 8px;
+}
+.order-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.order-table th {
+  color: var(--text-muted-dark); font-weight: 600; padding: 8px 6px;
+  border-bottom: 1px solid var(--border-clr); text-align: left;
+}
+.order-table td {
+  padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.02);
+  font-family: 'JetBrains Mono', monospace; vertical-align: middle;
+}
+.action-cell { text-align: right; display: flex; gap: 6px; justify-content: flex-end; }
+.btn-icon {
+  background: transparent; border: none; color: var(--text-muted-dark);
+  cursor: pointer; font-size: 12px; transition: color 0.2s ease; padding: 4px;
+}
+.btn-icon:hover { color: var(--cyan); }
+.btn-icon.delete-hover:hover { color: var(--red); }
+.btn-icon.save-hover:hover { color: var(--green); }
+.badge-dir { padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+.badge-dir.buy { background: rgba(16,185,129,0.1); color: var(--green); }
+.badge-dir.sell { background: rgba(239,68,68,0.1); color: var(--red); }
+.tv-link-anchor { color: var(--cyan); text-decoration: none; font-size: 14px; }
+.tv-link-anchor:hover { color: #fff; }
+.table-inline-input {
+  background: #1e293b; border: 1px solid var(--cyan); color: #fff;
+  padding: 4px 6px; border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; width: 100%;
+}
+.archive-month-block {
+  margin-bottom: 16px; background: rgba(255,255,255,0.01);
+  border: 1px solid var(--border-clr); border-radius: 12px; overflow: hidden;
+}
+.archive-month-header {
+  background: #0f172a; padding: 10px 14px; font-size: 11px; font-weight: 800;
+  color: var(--cyan); text-transform: uppercase; letter-spacing: 1px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border-clr);
+}
+.empty-row-notice { text-align: center; color: var(--text-muted-dark); padding: 15px 0; font-style: italic; }
+.section-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted-dark); font-weight: 700; }
+.hard-wipe-btn {
+  background: transparent; border: none; color: rgba(239,68,68,0.25);
+  font-size: 10px; cursor: pointer; text-decoration: underline; margin-top: auto; align-self: center;
+}
+/* Кривая доходности */
+.equity-card {
+  background: linear-gradient(135deg, #0f172a, #090d16);
+  border: 1px solid var(--border-clr); border-left: 4px solid var(--cyan);
+  border-radius: 14px; padding: 14px; position: relative;
+}
+.equity-card-title { font-size: 10px; text-transform: uppercase; color: var(--text-muted-dark); font-weight: 700; letter-spacing: 0.5px; }
+.equity-chart-wrap { position: relative; width: 100%; height: 50px; margin-top: 6px; }
+
+/* Модалка */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(2,6,23,0.85); backdrop-filter: blur(8px);
+  z-index: 1000; display: none; justify-content: center;
+  align-items: center; padding: 20px;
+}
+.modal-content {
+  background: #0f172a; border: 2px solid var(--border-clr);
+  border-radius: 24px; width: 100%; max-width: 950px;
+  padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; border-bottom: 1px dashed var(--border-clr); padding-bottom: 10px;
+}
+.close-modal-btn { background: transparent; border: none; color: var(--text-muted-dark); font-size: 20px; cursor: pointer; }
+.close-modal-btn:hover { color: var(--red); }
+
+/* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
+
+/* Таб-переключатель (только мобильный) */
+.mobile-tabs {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-clr);
+  margin-bottom: 4px;
+}
+.mobile-tab-btn {
+  background: #090d16;
+  border: none;
+  color: var(--text-muted-dark);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 11px 8px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.2s, color 0.2s;
+}
+.mobile-tab-btn.active {
+  background: rgba(6,182,212,0.12);
+  color: var(--cyan);
+}
+
+@media (max-width: 820px) {
+  body {
+    padding: 10px 8px;
+  }
+
+  .dashboard-container {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    gap: 14px;
+    border-radius: 18px;
+  }
+
+  /* Показываем табы */
+  .mobile-tabs {
+    display: grid;
+  }
+
+  /* Правая панель скрыта по умолчанию */
+  .right-panel {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px dashed var(--border-clr);
+    padding-top: 14px;
+    display: none;
+  }
+  .right-panel.tab-active {
+    display: flex;
+  }
+  .left-panel.tab-hidden {
+    display: none;
+  }
+
+  /* Шапка */
+  .header-widget h1 {
+    font-size: 16px;
+  }
+
+  /* Дерево — компактнее */
+  .garden-viewport {
+    max-height: 340px;
+  }
+  .overlay-balance-value {
+    font-size: 22px;
+  }
+
+  /* Блок риска */
+  .risk-info-box {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+  .risk-box-value {
+    font-size: 13px;
+  }
+
+  /* Кружки хода сессии */
+  .chain-dot {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  /* Кнопки торговли */
+  .btn-trade {
+    padding: 14px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+  .action-buttons {
+    gap: 10px;
+  }
+
+  /* Правая панель — статы */
+  .global-stats-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .equity-card[style*="span 2"],
+  .equity-card {
+    grid-column: span 1 !important;
+  }
+  .global-card-value {
+    font-size: 18px;
+  }
+
+  /* Таблицы — скрываем менее важные колонки */
+  .order-table th:nth-child(3),
+  .order-table td:nth-child(3),
+  .order-table th:nth-child(4),
+  .order-table td:nth-child(4) {
+    display: none;
+  }
+
+  /* Текущий ордер — скрываем РЕЖИМ */
+  #table-open-position tr th:nth-child(4),
+  #table-open-position tr td:nth-child(4) {
+    display: none;
+  }
+
+  /* Метрики сессии */
+  .session-perf-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .perf-metric-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 10px;
+  }
+
+  /* Модалка */
+  .modal-content {
+    padding: 16px;
+    border-radius: 18px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-content > div:nth-child(2) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Архив */
+  #archive-months-container {
+    max-height: 400px;
+  }
+
+  /* Инпуты */
+  .terminal-input {
+    font-size: 15px;
+    padding: 12px 10px;
+  }
+  .grid-inputs-2x2 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Убираем hover-эффекты (нет мыши на телефоне) */
+  .btn-icon:hover { color: var(--text-muted-dark); }
+  .btn-icon.delete-hover:hover { color: var(--text-muted-dark); }
+}
+
+@media (max-width: 400px) {
+  body { padding: 6px 4px; }
+  .dashboard-container { padding: 10px; border-radius: 14px; }
+  .garden-viewport { max-height: 280px; }
+  .overlay-balance-value { font-size: 19px; }
+  .btn-trade { font-size: 13px; padding: 12px; }
+  .day-chain { gap: 8px; }
+  .chain-dot { width: 28px; height: 28px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<div class="dashboard-container">
+
+  <!-- МОБИЛЬНЫЕ ТАБЫ -->
+  <div class="mobile-tabs">
+    <button class="mobile-tab-btn active" id="tab-btn-left" onclick="switchTab('left')">
+      <i class="fa-solid fa-seedling" style="margin-right:5px;"></i>Дерево
+    </button>
+    <button class="mobile-tab-btn" id="tab-btn-right" onclick="switchTab('right')">
+      <i class="fa-solid fa-chart-bar" style="margin-right:5px;"></i>Аналитика
+    </button>
+  </div>
+
+  <!-- ===== ЛЕВАЯ ПАНЕЛЬ ===== -->
+  <div class="left-panel" id="panel-left">
+    <div class="header-widget">
+      <h1><span style="color:var(--green); text-shadow:0 0 15px rgba(16,185,129,0.45);">VAGEN</span> Дерево жизни 1.0</h1>
+      <div class="clock-row" id="kyiv-clock">Киев: --:--:--</div>
+    </div>
+
+    <!-- ДЕРЕВО -->
+    <div class="garden-viewport">
+      <div class="tree-scene">
+        <!-- Фото Дерево -->
+        <div class="tree-svg-wrap" id="tree-wrap">
+          <img id="tree-photo" class="tree-photo" src="дерево4.jpg" alt="Дерево">
+        </div>
+      </div>
+
+      <!-- Оверлей -->
+      <div class="garden-overlay-stats">
+        <div class="garden-overlay-row">
+          <div>
+            <div style="font-size:10px; text-transform:uppercase; color:var(--text-muted-dark);">Депозит</div>
+            <div class="overlay-balance-value" id="ui-balance">$50,000</div>
+          </div>
+          <div class="stage-badge" id="ui-stage-badge">Росток 🌱</div>
+        </div>
+        <div>
+          <div class="stage-progress-label" id="ui-stage-progress-label">До следующей стадии</div>
+          <div class="stage-progress-track">
+            <div class="stage-progress-fill" id="ui-stage-progress-fill" style="width:0%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="risk-info-box">
+      <span><i class="fa-solid fa-calculator" style="color:var(--cyan);"></i> Риск Ступени 1 (Ориентир):</span>
+      <span class="risk-box-value" id="ui-base-risk">$250</span>
+    </div>
+
+    <div class="section-title">Ход текущей сессии</div>
+    <div class="day-chain">
+      <div class="chain-dot" id="dot-1">1</div>
+      <div class="chain-dot" id="dot-2">2</div>
+      <div class="chain-dot" id="dot-3">3</div>
+      <div class="chain-dot" id="dot-4">4</div>
+    </div>
+
+    <div class="trade-pad">
+      <div class="current-step-badge" id="ui-step-label">Сделка 1: Ступень 1</div>
+      <div class="input-group">
+        <label>Рабочий инструмент (Тикер)</label>
+        <input type="text" id="ui-asset-input" class="terminal-input" value="BTC/USDT" oninput="updateLiveTableAsset()">
+      </div>
+      <div style="font-size:13px; font-weight:600; margin-bottom:12px; text-align:left; padding-left:2px;">
+        Расчетный риск по системе: <span id="ui-current-risk" style="color:var(--cyan); font-weight:700;">$250</span>
+      </div>
+      <div class="action-buttons" id="ui-pad-main-buttons">
+        <button class="btn-trade btn-minus" id="btn-action-minus" onclick="openAmountWorkflow('минус')">Минус</button>
+        <button class="btn-trade btn-plus" id="btn-action-plus" onclick="openAmountWorkflow('плюс')">Плюс</button>
+      </div>
+      <button class="btn-trade" style="width:100%; margin-top:8px; background:#334155; color:#fff;" onclick="forceCloseSession()">Завершить сессию</button>
+      <div class="amount-flow-box" id="ui-amount-box">
+        <div style="font-size:11px; text-transform:uppercase; font-weight:700; margin-bottom:10px; color:var(--cyan); text-align:center;" id="ui-flow-title">Аналитика ордера</div>
+        <div style="margin-bottom:8px;">
+          <label style="font-size:10px; color:var(--text-muted-dark); text-transform:uppercase; display:block; margin-bottom:2px;">Сумма PnL ($)</label>
+          <input type="number" id="ui-custom-pnl-input" class="terminal-input" placeholder="Чистый финансовый результат">
+        </div>
+        <div class="grid-inputs-2x2">
+          <div>
+            <label style="font-size:10px; color:var(--text-muted-dark); display:block; margin-bottom:2px;">Таймфрейм</label>
+            <select id="ui-stat-tf" class="terminal-input">
+              <option value="m1">m1</option>
+              <option value="m5" selected>m5</option>
+              <option value="m15">m15</option>
+              <option value="H1">H1</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:10px; color:var(--text-muted-dark); display:block; margin-bottom:2px;">Модель/Сетап</label>
+            <select id="ui-stat-setup" class="terminal-input">
+              <option value="OB">OB (Ордерблок)</option>
+              <option value="FVG" selected>FVG (Имбаланс)</option>
+              <option value="MSB">MSB (Слом)</option>
+              <option value="Liquidity">Liquidity (Съем)</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-inputs-2x2">
+          <div style="grid-column:span 2;">
+            <label style="font-size:10px; color:var(--text-muted-dark); display:block; margin-bottom:2px;">Скриншот сделки (TradingView URL)</label>
+            <input type="text" id="ui-stat-tvlink" class="terminal-input" placeholder="https://www.tradingview.com/x/...">
+          </div>
+        </div>
+        <div style="margin-bottom:4px;">
+          <label style="font-size:10px; color:var(--text-muted-dark); display:block; margin-bottom:2px;">План Риск/Прибыль (R:R)</label>
+          <input type="text" id="ui-stat-rr" class="terminal-input" value="1:3">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-trade" style="background:#334155; color:#fff; flex:1; padding:8px;" onclick="closeAmountWorkflow()">Отмена</button>
+          <button class="btn-trade" style="background:var(--cyan); color:#000; flex:1; padding:8px;" onclick="confirmTradeWithAmount()">Внести</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="day-end-box" id="ui-end-box" style="display:none;">
+      <div style="font-weight:800; font-size:13px; margin-bottom:4px; color:var(--gold);" id="ui-detected-scenario">Определен Сценарий</div>
+      <div style="font-size:14px; font-weight:700; margin-bottom:12px;" id="ui-day-financials">Итог: +$0</div>
+      <button class="btn-submit-day" onclick="commitDayToDatabase()">Зафиксировать в Летопись</button>
+    </div>
+
+    <button class="hard-wipe-btn" onclick="hardResetFunds()">Сбросить прогресс ($50,000)</button>
+  </div>
+
+  <!-- ===== ПРАВАЯ ПАНЕЛЬ ===== -->
+  <div class="right-panel" id="panel-right">
+
+    <div class="global-stats-row">
+      <div class="global-card pf-accent">
+        <div class="global-card-title"><i class="fa-solid fa-calculator"></i> Общий Profit Factor</div>
+        <div class="global-card-value" id="global-profit-factor">0.00</div>
+      </div>
+      <!-- КРИВАЯ ДОХОДНОСТИ вместо winrate -->
+      <div class="equity-card" style="grid-column: span 2;">
+        <div class="equity-card-title"><i class="fa-solid fa-chart-line" style="color:var(--cyan); margin-right:5px;"></i> Кривая доходности (по сессиям)</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; margin-top:2px;" id="global-total-pnl-inline">$0</div>
+        <div class="equity-chart-wrap">
+          <canvas id="equityMiniChart" role="img" aria-label="Кривая доходности по сессиям">Динамика депозита по сессиям.</canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Открытая позиция -->
+    <div class="dash-card" style="border-color:rgba(6,182,212,0.2);">
+      <div class="card-header">
+        <div class="card-title"><span style="width:8px; height:8px; background:var(--gold); border-radius:50%; display:inline-block;"></span> Текущий ордер в проторговке</div>
+        <div style="font-size:11px; color:var(--gold); font-weight:600;" id="ui-live-status">Ожидание...</div>
+      </div>
+      <table class="order-table">
+        <thead><tr><th>ИНСТРУМЕНТ</th><th>НАПРАВЛЕНИЕ</th><th>БАЗОВЫЙ РИСК</th><th>РЕЖИМ</th></tr></thead>
+        <tbody id="table-open-position"></tbody>
+      </table>
+    </div>
+
+    <!-- Исполненные ордера -->
+    <div class="dash-card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa-solid fa-chart-bar" style="color:var(--cyan);"></i> Исполненные ордера и Метрики</div>
+        <div style="font-size:11px; color:var(--text-muted-dark);" id="ui-closed-count">Всего: 0</div>
+      </div>
+      <table class="order-table" style="margin-bottom:14px;">
+        <thead>
+          <tr>
+            <th>ИНСТРУМЕНТ</th>
+            <th>ТИП</th>
+            <th>TF / СЕТАП</th>
+            <th>R:R</th>
+            <th style="text-align:center;">ГРАФИК</th>
+            <th>ИТОГ</th>
+            <th style="text-align:right; padding-right:12px;">УПРВЛ.</th>
+          </tr>
+        </thead>
+        <tbody id="table-closed-orders"></tbody>
+      </table>
+      <div class="session-perf-bar">
+        <div class="perf-metric-card">
+          <span style="font-size:11px; color:var(--text-muted-dark); text-transform:uppercase;">Сессионный Winrate</span>
+          <span class="perf-metric-val" id="ui-calc-winrate" style="color:var(--green);">0%</span>
+        </div>
+        <div class="perf-metric-card">
+          <span style="font-size:11px; color:var(--text-muted-dark); text-transform:uppercase;">Profit Factor сессии</span>
+          <span class="perf-metric-val" id="ui-calc-pf" style="color:var(--gold);">0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Архив -->
+    <div class="dash-card" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+      <div class="card-header">
+        <div class="card-title"><i class="fa-solid fa-book" style="color:var(--green);"></i> Журнал Истории: Хронология по Месяцам</div>
+      </div>
+      <div style="overflow-y:auto; flex:1; padding-right:4px;" id="archive-months-container"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Модалка истории -->
+<div class="modal-overlay" id="ui-history-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div style="font-weight:800; font-size:15px; color:var(--cyan);" id="modal-day-title">Исторический отчет</div>
+      <button class="close-modal-btn" onclick="closeHistoryModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="margin-bottom:16px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+      <div style="background:rgba(255,255,255,0.02); padding:10px; border-radius:10px;">
+        <div style="font-size:10px; color:var(--text-muted-dark); text-transform:uppercase;">Цепочка</div>
+        <div id="modal-day-chain" style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; margin-top:4px;">—</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02); padding:10px; border-radius:10px;">
+        <div style="font-size:10px; color:var(--text-muted-dark); text-transform:uppercase;">Winrate</div>
+        <div id="modal-day-winrate" style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--green); margin-top:4px;">0%</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02); padding:10px; border-radius:10px;">
+        <div style="font-size:10px; color:var(--text-muted-dark); text-transform:uppercase;">Profit Factor</div>
+        <div id="modal-day-pf" style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--gold); margin-top:4px;">0.00</div>
+      </div>
+    </div>
+    <table class="order-table">
+      <thead>
+        <tr>
+          <th>ИНСТРУМЕНТ</th><th>ТИП</th><th>TF / СЕТАП</th><th>R:R</th>
+          <th style="text-align:center;">СКРИНШОТ</th><th>РЕЗУЛЬТАТ</th>
+        </tr>
+      </thead>
+      <tbody id="modal-orders-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const monthNamesRU = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+
+let state = JSON.parse(localStorage.getItem('ph_terminal_v17')) || {
+  balance: 50000, currentMode: 'day', currentStage: 'sprout', ledger: []
+};
+
+let currentDayTrades = [];
+let closedOrdersLog = [];
+let isDayOver = false;
+let activeWorkflowOutcome = null;
+let editingIndex = null;
+let equityChartInstance = null;
+
+// ===== ФОТО ДЕРЕВА =====
+const TREE_IMAGES = {
+  dead:         { day: 'дерево1.png',  night: 'дерево11.png'  },
+  wither_low:   { day: 'дерево2.jpg',  night: 'дерево21.png'  },
+  wither_high:  { day: 'дерево3.png',  night: 'дерево31.png'  },
+  sprout:       { day: 'дерево4.jpg',  night: 'дерево41.png'  },
+  bloom_small:  { day: 'дерево5.png',  night: 'дерево51.png'  },
+  grown:        { day: 'дерево6.png',  night: 'дерево61.png'  },
+  bloom_full:   { day: 'дерево7.jpg',  night: 'дерево71.jpg'  },
+  apples:       { day: 'дерево8.png',  night: 'дерево81.png'  },
+  apples_many:  { day: 'дерево9.jpg',  night: 'дерево91.jpg'  },
+  golden:       { day: 'дерево10.png', night: 'дерево101.png' },
+};
+
+function isNightInKyiv() {
+  const hour = parseInt(new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Kyiv", hour: "2-digit", hour12: false }).format(new Date()), 10);
+  return hour >= 20 || hour < 6;
+}
+
+// Определяет ключ изображения дерева по балансу
+function getTreeImageKey(balance) {
+  if (balance <= 45000) return 'dead';
+  if (balance <= 46000) return 'wither_low';
+  if (balance <= 47500) return 'wither_low';
+  if (balance <= 49500) return 'wither_high';
+  if (balance < 50500) return 'sprout';
+  if (balance < 52000) return 'bloom_small';
+  if (balance < 52500) return 'grown';
+  if (balance < 53500) return 'bloom_full';
+  if (balance < 54500) return 'apples';
+  if (balance < 55000) return 'apples_many';
+  return 'golden';
+}
+
+// Границы стадий по балансу: [нижняя граница, верхняя граница, цвет свечения]
+const STAGE_BOUNDS = [
+  { key: 'dead',        min: -Infinity, max: 45000, color: '100,40,40' },
+  { key: 'wither_low',  min: 45000,     max: 47500, color: '180,70,40' },
+  { key: 'wither_high', min: 47500,     max: 49500, color: '200,150,40' },
+  { key: 'sprout',      min: 49500,     max: 50500, color: '16,185,129' },
+  { key: 'bloom_small', min: 50500,     max: 52000, color: '90,200,140' },
+  { key: 'grown',       min: 52000,     max: 52500, color: '16,185,129' },
+  { key: 'bloom_full',  min: 52500,     max: 53500, color: '120,220,160' },
+  { key: 'apples',      min: 53500,     max: 54500, color: '230,160,40' },
+  { key: 'apples_many', min: 54500,     max: 55000, color: '250,190,50' },
+  { key: 'golden',      min: 55000,     max: Infinity, color: '255,215,0' },
+];
+
+function updateStageVisuals() {
+  const balance = state.balance;
+  const stage = STAGE_BOUNDS.find(s => balance >= s.min && balance < s.max) || STAGE_BOUNDS[STAGE_BOUNDS.length - 1];
+  const viewport = document.querySelector('.garden-viewport');
+  const fill = document.getElementById('ui-stage-progress-fill');
+  const label = document.getElementById('ui-stage-progress-label');
+  if (!viewport || !fill) return;
+
+  const glowColor = `rgba(${stage.color},0.35)`;
+  viewport.style.setProperty('--stage-glow', glowColor);
+  fill.style.setProperty('--stage-glow-solid', `rgb(${stage.color})`);
+
+  if (stage.max === Infinity) {
+    fill.style.width = '100%';
+    if (label) label.innerText = 'Максимальная стадия достигнута';
+  } else if (stage.min === -Infinity) {
+    fill.style.width = '0%';
+    if (label) label.innerText = 'Минимальная стадия';
+  } else {
+    const span = stage.max - stage.min;
+    const progress = Math.max(0, Math.min(1, (balance - stage.min) / span));
+    fill.style.width = `${(progress * 100).toFixed(1)}%`;
+    if (label) label.innerText = `До следующей стадии: $${Math.max(0, stage.max - balance).toLocaleString('ru-RU')}`;
+  }
+}
+
+function setTreeMood(mood) {
+  const photo = document.getElementById('tree-photo');
+
+  // Выбор фотографии дерева по балансу и времени суток
+  const key = getTreeImageKey(state.balance);
+  const timeOfDay = isNightInKyiv() ? 'night' : 'day';
+  const imgSet = TREE_IMAGES[key] || TREE_IMAGES.sprout;
+  const newSrc = imgSet[timeOfDay] || imgSet.day;
+
+  if (!photo.src.endsWith(newSrc)) {
+    photo.src = newSrc;
+  }
+  photo.classList.toggle('golden', key === 'golden');
+
+  updateStageVisuals();
+}
+
+function getBaseRisk(balance) {
+  let base = Math.floor(balance / 1000) * 1000;
+  if (base <= 46000) return 50;
+  if (base === 47000) return 100;
+  if (base === 48000) return 150;
+  if (base === 49000) return 200;
+  if (base === 50000) return 250;
+  if (base === 51000) return 300;
+  if (base === 52000) return 350;
+  if (base === 53000) return 400;
+  if (base === 54000) return 450;
+  return 500;
+}
+
+function autoDetectStage(balance) {
+  if (balance < 49000) return 'sprout';
+  if (balance < 53000) return 'tree';
+  return 'final';
+}
+
+function updateKyivTime() {
+  const opts = { timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false };
+  document.getElementById('kyiv-clock').innerText = `Киев: ${new Intl.DateTimeFormat("ru-RU", opts).format(new Date())}`;
+  const photo = document.getElementById('tree-photo');
+  if (photo) {
+    const key = getTreeImageKey(state.balance);
+    const timeOfDay = isNightInKyiv() ? 'night' : 'day';
+    const imgSet = TREE_IMAGES[key] || TREE_IMAGES.sprout;
+    const newSrc = imgSet[timeOfDay] || imgSet.day;
+    if (!photo.src.endsWith(newSrc)) {
+      photo.src = newSrc;
+    }
+  }
+}
+
+function updateLiveTableAsset() {
+  let asset = document.getElementById('ui-asset-input').value || "BTC/USDT";
+  let row = document.getElementById('ui-live-asset-row');
+  if (row) row.innerText = asset.toUpperCase();
+}
+
+function calculateLiveMetrics() {
+  if (closedOrdersLog.length === 0) {
+    document.getElementById('ui-calc-winrate').innerText = "0%";
+    document.getElementById('ui-calc-pf').innerText = "0.00";
+    return;
+  }
+  let wins = closedOrdersLog.filter(o => o.pnl > 0).length;
+  let winrate = Math.round((wins / closedOrdersLog.length) * 100);
+  let gp = 0, gl = 0;
+  closedOrdersLog.forEach(o => { if (o.pnl > 0) gp += o.pnl; else gl += Math.abs(o.pnl); });
+  let pf = gl === 0 && gp > 0 ? "MAX" : gl > 0 ? (gp / gl).toFixed(2) : "0.00";
+  document.getElementById('ui-calc-winrate').innerText = `${winrate}%`;
+  document.getElementById('ui-calc-pf').innerText = pf;
+}
+
+// ===== КРИВАЯ ДОХОДНОСТИ =====
+function renderEquityChart() {
+  const canvas = document.getElementById('equityMiniChart');
+  if (!canvas) return;
+
+  let balanceHistory = [50000];
+  let totalPnl = 0;
+
+  if (state.ledger && state.ledger.length > 0) {
+    let running = 50000;
+    state.ledger.forEach(day => {
+      running += day.outcome;
+      totalPnl += day.outcome;
+      balanceHistory.push(running);
+    });
+  }
+
+  const formattedPnl = (totalPnl >= 0 ? '+' : '') + '$' + Math.abs(totalPnl).toLocaleString('ru-RU');
+  document.getElementById('global-total-pnl-inline').innerText = formattedPnl;
+  document.getElementById('global-total-pnl-inline').style.color = totalPnl > 0 ? 'var(--green)' : totalPnl < 0 ? 'var(--red)' : 'var(--text-muted-dark)';
+
+  const isUp = totalPnl >= 0;
+  const lineColor = isUp ? '#10b981' : '#ef4444';
+  const fillColor = isUp ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.12)';
+
+  if (equityChartInstance) { equityChartInstance.destroy(); equityChartInstance = null; }
+
+  equityChartInstance = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: balanceHistory.map((_, i) => i === 0 ? 'Старт' : `С${i}`),
+      datasets: [{
+        data: balanceHistory,
+        borderColor: lineColor,
+        borderWidth: 2,
+        backgroundColor: fillColor,
+        fill: true,
+        tension: 0.4,
+        pointRadius: balanceHistory.length <= 10 ? 3 : 0,
+        pointBackgroundColor: lineColor,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: {
+        label: (ctx) => ` $${Math.round(ctx.raw).toLocaleString('ru-RU')}`
+      }}},
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      },
+      animation: { duration: 600 }
+    }
+  });
+}
+
+function calculateGlobalStats() {
+  if (!state.ledger || state.ledger.length === 0) {
+    document.getElementById('global-profit-factor').innerText = "0.00";
+    renderEquityChart();
+    return;
+  }
+  let gp = 0, gl = 0;
+  state.ledger.forEach(day => {
+    if (day.ordersHistory && day.ordersHistory.length > 0) {
+      day.ordersHistory.forEach(o => { if (o.pnl > 0) gp += o.pnl; else if (o.pnl < 0) gl += Math.abs(o.pnl); });
+    } else {
+      if (day.outcome > 0) gp += day.outcome;
+      else if (day.outcome < 0) gl += Math.abs(day.outcome);
+    }
+  });
+  let pf = gl === 0 && gp > 0 ? "MAX" : gl > 0 ? (gp / gl).toFixed(2) : "0.00";
+  document.getElementById('global-profit-factor').innerText = pf;
+  renderEquityChart();
+}
+
+function renderChronologicalArchive() {
+  const container = document.getElementById('archive-months-container');
+  if (!state.ledger || state.ledger.length === 0) {
+    container.innerHTML = `<div class="empty-row-notice">Архив пуст. Завершите сессию для наполнения истории.</div>`;
+    return;
+  }
+  let groups = {};
+  state.ledger.forEach((day, index) => {
+    let parts = day.date.split('.');
+    let year = parts[2] || new Date().getFullYear();
+    let monthIdx = parseInt(parts[1], 10) - 1;
+    if (isNaN(monthIdx) || monthIdx < 0 || monthIdx > 11) monthIdx = new Date().getMonth();
+    let gk = `${year}_${String(monthIdx).padStart(2, '0')}`;
+    if (!groups[gk]) groups[gk] = { title: `${monthNamesRU[monthIdx]} ${year}`, items: [] };
+    groups[gk].items.push({ data: day, originalIndex: index });
+  });
+
+  let html = '';
+  Object.keys(groups).sort().reverse().forEach(key => {
+    let g = groups[key];
+    g.items.reverse();
+    let rows = g.items.map(item => {
+      let l = item.data;
+      return `<tr>
+        <td>${l.date}</td>
+        <td style="font-size:11px; color:var(--text-muted-dark); font-family:monospace;">${l.chain}</td>
+        <td style="color:${l.outcome >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight:700;">${l.outcome >= 0 ? '+' : ''}$${l.outcome}</td>
+        <td class="action-cell" style="padding-right:8px;">
+          <button class="btn-icon" onclick="openHistoryModal(${item.originalIndex})" title="Посмотреть логи"><i class="fa-solid fa-eye" style="color:var(--cyan);"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+    html += `<div class="archive-month-block">
+      <div class="archive-month-header">
+        <span><i class="fa-regular fa-calendar-check" style="margin-right:6px; color:var(--gold);"></i> ${g.title}</span>
+        <span style="opacity:0.6; font-size:10px;">Сессий: ${g.items.length}</span>
+      </div>
+      <table class="order-table">
+        <thead><tr><th>ДАТА</th><th>ЦЕПОЧКА ЗНАКОВ</th><th>ПРОФИТ/УБЫТОК</th><th style="text-align:right; padding-right:12px;">ЛОГ</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function syncTerminalUI() {
+  document.getElementById('ui-balance').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(state.balance);
+  let baseRisk = getBaseRisk(state.balance);
+  document.getElementById('ui-base-risk').innerText = `$${baseRisk}`;
+
+  // Обновляем стадию
+  state.currentStage = autoDetectStage(state.balance);
+
+  // Определяем настроение дерева
+  let mood = 'neutral';
+  if (state.currentMode === 'day' && state.balance >= 50000) mood = 'bloom';
+  if (state.currentMode === 'wither') mood = 'wither';
+  setTreeMood(mood);
+
+  let badgeText = "Росток 🌱";
+  if (state.currentStage === 'tree') badgeText = "Дерево 🌳";
+  if (state.currentStage === 'final') badgeText = "Сад с Яблоками 🍏";
+  if (state.currentMode === 'wither') badgeText = "Вялое дерево 🍂";
+  document.getElementById('ui-stage-badge').innerText = badgeText;
+
+  let tradeCount = currentDayTrades.length;
+  for (let i = 1; i <= 4; i++) {
+    let dot = document.getElementById(`dot-${i}`);
+    dot.className = 'chain-dot';
+    dot.innerText = i;
+    if (currentDayTrades[i-1] === 'плюс') { dot.classList.add('plus'); dot.innerText = '+'; }
+    if (currentDayTrades[i-1] === 'минус') { dot.classList.add('minus'); dot.innerText = '−'; }
+  }
+
+  checkStopRules();
+
+  let currentAsset = document.getElementById('ui-asset-input').value || "BTC/USDT";
+  const openTableBody = document.getElementById('table-open-position');
+
+  if (!isDayOver) {
+    document.getElementById('ui-end-box').style.display = 'none';
+    document.getElementById('btn-action-plus').disabled = false;
+    document.getElementById('btn-action-minus').disabled = false;
+
+    let nextTradeNum = tradeCount + 1;
+    let currentStepLabel = `Сделка ${nextTradeNum}: Ступень 1`;
+    let currentRiskValue = baseRisk;
+
+    if (nextTradeNum === 2 && currentDayTrades[0] === 'плюс') { currentStepLabel = `Сделка 2: Ступень 2 (Разгон)`; currentRiskValue = baseRisk * 3; }
+    if (nextTradeNum === 4 && currentDayTrades[0] === 'плюс' && currentDayTrades[1] === 'минус' && currentDayTrades[2] === 'плюс') { currentStepLabel = `Сделка 4: Ступень 2`; currentRiskValue = baseRisk * 3; }
+    if (nextTradeNum === 4 && currentDayTrades[0] === 'минус' && currentDayTrades[1] === 'минус' && currentDayTrades[2] === 'плюс') { currentStepLabel = `Сделка 4: Ступень 2`; currentRiskValue = baseRisk * 3; }
+
+    document.getElementById('ui-step-label').innerText = currentStepLabel;
+    document.getElementById('ui-current-risk').innerText = `$${currentRiskValue}`;
+    document.getElementById('ui-live-status').innerText = "ОРДЕР ОТКРЫТ";
+    document.getElementById('ui-live-status').style.color = "var(--gold)";
+
+    openTableBody.innerHTML = `<tr>
+      <td id="ui-live-asset-row" style="text-transform:uppercase; font-weight:700;">${currentAsset}</td>
+      <td><span class="badge-dir buy">MARKET</span></td>
+      <td>$${currentRiskValue}</td>
+      <td>${currentRiskValue === baseRisk ? 'Ступень 1' : 'Ступень 2 🔥'}</td>
+    </tr>`;
+  } else {
+    document.getElementById('btn-action-plus').disabled = true;
+    document.getElementById('btn-action-minus').disabled = true;
+    document.getElementById('ui-step-label').innerText = "Сессия завершена";
+    document.getElementById('ui-current-risk').innerText = "$0";
+    document.getElementById('ui-live-status').innerText = "НЕТ ОТКРЫТЫХ ОРДЕРОВ";
+    document.getElementById('ui-live-status').style.color = "var(--text-muted-dark)";
+    openTableBody.innerHTML = `<tr><td colspan="4" class="empty-row-notice">Все ордера исполнены. Ожидание фиксации.</td></tr>`;
+    calculateAndShowDayResult();
+  }
+
+  const closedTableBody = document.getElementById('table-closed-orders');
+  document.getElementById('ui-closed-count').innerText = `Всего: ${closedOrdersLog.length}`;
+
+  if (closedOrdersLog.length === 0) {
+    closedTableBody.innerHTML = `<tr><td colspan="7" class="empty-row-notice">Ордеров пока нет.</td></tr>`;
+  } else {
+    let htmlRows = '';
+    closedOrdersLog.forEach((o, index) => {
+      if (editingIndex === index) {
+        htmlRows += `<tr>
+          <td><input type="text" id="inline-edit-asset" class="table-inline-input" value="${o.asset}"></td>
+          <td><span class="badge-dir ${o.type === 'Плюс' ? 'buy' : 'sell'}">${o.type}</span></td>
+          <td>
+            <input type="text" id="inline-edit-tf" class="table-inline-input" value="${o.tf||'m5'}" style="width:35px; margin-right:4px;">
+            <input type="text" id="inline-edit-setup" class="table-inline-input" value="${o.setup||'FVG'}" style="width:60px;">
+          </td>
+          <td><input type="text" id="inline-edit-rr" class="table-inline-input" value="${o.rr||'1:3'}" style="width:45px;"></td>
+          <td style="text-align:center;"><input type="text" id="inline-edit-tvlink" class="table-inline-input" value="${o.tvlink||''}" placeholder="Ссылка"></td>
+          <td><input type="number" id="inline-edit-pnl" class="table-inline-input" value="${Math.abs(o.pnl)}" style="width:70px;"></td>
+          <td class="action-cell">
+            <button class="btn-icon save-hover" onclick="saveInlineRow(${index})"><i class="fa-solid fa-check"></i></button>
+            <button class="btn-icon" onclick="cancelInlineEditing()"><i class="fa-solid fa-xmark"></i></button>
+          </td>
+        </tr>`;
+      } else {
+        let tvIconHtml = o.tvlink ? `<a href="${o.tvlink}" target="_blank" class="tv-link-anchor"><i class="fa-solid fa-image"></i></a>` : `<span style="color:var(--text-muted-dark); font-size:11px;">—</span>`;
+        htmlRows += `<tr>
+          <td style="text-transform:uppercase; font-weight:600;">${o.asset}</td>
+          <td><span class="badge-dir ${o.type === 'Плюс' ? 'buy' : 'sell'}">${o.type}</span></td>
+          <td style="color:var(--cyan); font-weight:500;">${o.tf||'m5'} <span style="color:var(--text-muted-dark)">/</span> ${o.setup||'FVG'}</td>
+          <td style="color:var(--gold); font-weight:600;">${o.rr||'1:3'}</td>
+          <td style="text-align:center;">${tvIconHtml}</td>
+          <td style="color:${o.pnl>=0?'var(--green)':'var(--red)'}; font-weight:700;">${o.pnl>=0?'+':''}$${o.pnl}</td>
+          <td class="action-cell">
+            <button class="btn-icon" onclick="startInlineEditing(${index})"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-icon delete-hover" onclick="deleteClosedRow(${index})"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }
+    });
+    closedTableBody.innerHTML = htmlRows;
+  }
+
+  calculateLiveMetrics();
+  calculateGlobalStats();
+  renderChronologicalArchive();
+}
+
+function forceCloseSession() {
+  if (currentDayTrades.length === 0) { alert('Нет сделок для фиксации сессии.'); return; }
+  isDayOver = true;
+  calculateAndShowDayResult();
+}
+
+function checkStopRules() {
+  let len = currentDayTrades.length;
+  if (len >= 3 && currentDayTrades.slice(-3).every(t => t === 'минус')) { isDayOver = true; return; }
+  if (len >= 4) { isDayOver = true; return; }
+  if (len === 2 && currentDayTrades[0] === 'плюс' && currentDayTrades[1] === 'плюс') { isDayOver = true; return; }
+  isDayOver = false;
+}
+
+function openAmountWorkflow(outcome) {
+  activeWorkflowOutcome = outcome;
+  document.getElementById('ui-pad-main-buttons').style.display = 'none';
+  document.getElementById('ui-amount-box').style.display = 'block';
+  document.getElementById('ui-flow-title').innerText = outcome === 'плюс' ? 'Внесите аналитику ПЛЮСА' : 'Внесите аналитику МИНУСА';
+  document.getElementById('ui-custom-pnl-input').value = '';
+  document.getElementById('ui-stat-tvlink').value = '';
+  document.getElementById('ui-custom-pnl-input').focus();
+}
+
+function closeAmountWorkflow() {
+  activeWorkflowOutcome = null;
+  document.getElementById('ui-pad-main-buttons').style.display = 'grid';
+  document.getElementById('ui-amount-box').style.display = 'none';
+}
+
+function confirmTradeWithAmount() {
+  let userVal = parseFloat(document.getElementById('ui-custom-pnl-input').value);
+  if (isNaN(userVal) || userVal < 0) { alert('Введите корректное положительное число.'); return; }
+
+  let asset = document.getElementById('ui-asset-input').value || "BTC/USDT";
+  let tf = document.getElementById('ui-stat-tf').value;
+  let setup = document.getElementById('ui-stat-setup').value;
+  let rr = document.getElementById('ui-stat-rr').value || "1:3";
+  let tvlink = document.getElementById('ui-stat-tvlink').value.trim();
+  let computedPnl = activeWorkflowOutcome === 'плюс' ? userVal : -userVal;
+
+  closedOrdersLog.push({ asset, type: activeWorkflowOutcome === 'плюс' ? 'Плюс' : 'Минус', pnl: computedPnl, tf, setup, rr, tvlink });
+  currentDayTrades.push(activeWorkflowOutcome);
+  closeAmountWorkflow();
+  syncTerminalUI();
+}
+
+function startInlineEditing(index) { editingIndex = index; syncTerminalUI(); }
+function cancelInlineEditing() { editingIndex = null; syncTerminalUI(); }
+
+function saveInlineRow(index) {
+  let newAsset = document.getElementById('inline-edit-asset').value.trim() || "BTC/USDT";
+  let newPnlAbs = parseFloat(document.getElementById('inline-edit-pnl').value);
+  if (isNaN(newPnlAbs) || newPnlAbs < 0) { alert('Введите корректную сумму.'); return; }
+  let sign = closedOrdersLog[index].type === 'Плюс' ? 1 : -1;
+  closedOrdersLog[index] = {
+    ...closedOrdersLog[index],
+    asset: newAsset,
+    pnl: newPnlAbs * sign,
+    tf: document.getElementById('inline-edit-tf').value,
+    setup: document.getElementById('inline-edit-setup').value,
+    rr: document.getElementById('inline-edit-rr').value,
+    tvlink: document.getElementById('inline-edit-tvlink').value.trim(),
+  };
+  editingIndex = null;
+  syncTerminalUI();
+}
+
+function deleteClosedRow(index) {
+  if (confirm('Удалить этот ордер?')) {
+    closedOrdersLog.splice(index, 1);
+    currentDayTrades.splice(index, 1);
+    editingIndex = null;
+    syncTerminalUI();
+  }
+}
+
+function calculateAndShowDayResult() {
+  let key = currentDayTrades.join(' ➡️ ');
+  let scenarioTitle = "Качели / Сессия лимитирована";
+  if (key === 'минус ➡️ минус ➡️ минус') scenarioTitle = "Сценарий 1: Тройной стоп-аут 🍂";
+  else if (key === 'плюс ➡️ плюс') scenarioTitle = "Сценарий 2: Идеальный взлет 🚀";
+  else if (key === 'плюс ➡️ минус ➡️ плюс ➡️ плюс') scenarioTitle = "Сценарий 3: Повторный круг";
+  else if (key === 'плюс ➡️ минус ➡️ плюс ➡️ минус') scenarioTitle = "Сценарий 4: Двойной срыв";
+  else if (key === 'минус ➡️ минус ➡️ плюс ➡️ плюс') scenarioTitle = "Сценарий 5: Камбэк дня 🎯";
+  else if (key === 'минус ➡️ минус ➡️ плюс ➡️ минус') scenarioTitle = "Сценарий 6: Ограниченный убыток";
+
+  let totalDayNet = 0;
+  closedOrdersLog.forEach(o => totalDayNet += o.pnl);
+
+  document.getElementById('ui-detected-scenario').innerText = scenarioTitle;
+  document.getElementById('ui-day-financials').innerText = `Итог: ${totalDayNet >= 0 ? '+' : ''}$${totalDayNet}`;
+  document.getElementById('ui-end-box').style.display = 'block';
+}
+
+function commitDayToDatabase() {
+  let totalDayNet = 0;
+  closedOrdersLog.forEach(o => totalDayNet += o.pnl);
+
+  state.balance += totalDayNet;
+  state.currentMode = totalDayNet > 0 ? 'day' : totalDayNet < 0 ? 'wither' : state.currentMode;
+  state.currentStage = autoDetectStage(state.balance);
+
+  state.ledger.push({
+    date: new Date().toLocaleDateString('ru-RU'),
+    chain: currentDayTrades.join(' -> '),
+    outcome: totalDayNet,
+    ordersHistory: JSON.parse(JSON.stringify(closedOrdersLog))
+  });
+
+  localStorage.setItem('ph_terminal_v17', JSON.stringify(state));
+
+  currentDayTrades = [];
+  closedOrdersLog = [];
+  isDayOver = false;
+  syncTerminalUI();
+  alert('Сессия зафиксирована в Хронологическом Архиве!');
+}
+
+function openHistoryModal(index) {
+  let hDay = state.ledger[index];
+  if (!hDay) return;
+  document.getElementById('modal-day-title').innerText = `Исторический лог: ${hDay.date}`;
+  document.getElementById('modal-day-chain').innerText = hDay.chain || '—';
+
+  let hOrders = hDay.ordersHistory || [];
+  const mb = document.getElementById('modal-orders-body');
+
+  if (hOrders.length === 0) {
+    mb.innerHTML = `<tr><td colspan="6" class="empty-row-notice">Ордера фиксировались без детальных мета-логов.</td></tr>`;
+    document.getElementById('modal-day-winrate').innerText = "—";
+    document.getElementById('modal-day-pf').innerText = "—";
+  } else {
+    let html = '', wins = 0, gp = 0, gl = 0;
+    hOrders.forEach(o => {
+      if (o.pnl > 0) { wins++; gp += o.pnl; } else if (o.pnl < 0) { gl += Math.abs(o.pnl); }
+      let tvIcon = o.tvlink ? `<a href="${o.tvlink}" target="_blank" class="tv-link-anchor"><i class="fa-solid fa-image"></i></a>` : '—';
+      html += `<tr>
+        <td style="text-transform:uppercase; font-weight:600;">${o.asset||'BTC/USDT'}</td>
+        <td><span class="badge-dir ${o.pnl>=0?'buy':'sell'}">${o.pnl>=0?'Плюс':'Минус'}</span></td>
+        <td style="color:var(--cyan);">${o.tf||'m5'} / ${o.setup||'FVG'}</td>
+        <td style="color:var(--gold);">${o.rr||'1:3'}</td>
+        <td style="text-align:center;">${tvIcon}</td>
+        <td style="color:${o.pnl>=0?'var(--green)':'var(--red)'}; font-weight:700;">${o.pnl>=0?'+':''}$${o.pnl}</td>
+      </tr>`;
+    });
+    mb.innerHTML = html;
+    let wr = Math.round((wins / hOrders.length) * 100);
+    let pf = gl === 0 && gp > 0 ? "MAX" : gl > 0 ? (gp/gl).toFixed(2) : "0.00";
+    document.getElementById('modal-day-winrate').innerText = `${wr}%`;
+    document.getElementById('modal-day-pf').innerText = pf;
+  }
+  document.getElementById('ui-history-modal').style.display = 'flex';
+}
+
+function closeHistoryModal() {
+  document.getElementById('ui-history-modal').style.display = 'none';
+}
+
+function hardResetFunds() {
+  if (confirm('Сбросить аккаунт до $50,000 и очистить Хронологию Архива?')) {
+    localStorage.removeItem('ph_terminal_v17');
+    state = { balance: 50000, currentMode: 'day', currentStage: 'sprout', ledger: [] };
+    currentDayTrades = [];
+    closedOrdersLog = [];
+    isDayOver = false;
+    syncTerminalUI();
+  }
+}
+
+setInterval(updateKyivTime, 1000);
+updateKyivTime();
+syncTerminalUI();
+
+// ===== МОБИЛЬНЫЕ ТАБЫ =====
+function switchTab(tab) {
+  const panelLeft  = document.getElementById('panel-left');
+  const panelRight = document.getElementById('panel-right');
+  const btnLeft    = document.getElementById('tab-btn-left');
+  const btnRight   = document.getElementById('tab-btn-right');
+  if (!panelLeft || !panelRight) return;
+
+  if (tab === 'left') {
+    panelLeft.classList.remove('tab-hidden');
+    panelRight.classList.remove('tab-active');
+    btnLeft.classList.add('active');
+    btnRight.classList.remove('active');
+  } else {
+    panelLeft.classList.add('tab-hidden');
+    panelRight.classList.add('tab-active');
+    btnRight.classList.add('active');
+    btnLeft.classList.remove('active');
+    // Перерисовываем график при переключении на аналитику
+    renderEquityChart();
+  }
+}
+</script>
+</body>
+</html>
